@@ -14,27 +14,27 @@ namespace FaucetHandler
 
 			sb.Append($"```"); // CODE FORMATTING START
 
-		//	sb.AppendLine($"!r - refresh stats");
+		    sb.AppendLine($"!r - refresh");
 		//	sb.AppendLine($"!setlp - to set lp");
 
 			sb.Append($"```"); // CODE FORMATTING END
 
 			return Context.Channel.SendMessageAsync(sb.ToString());
 		}
-		
-		//[Command("setlp")]
-		//[Summary("Sets new LP values.")]
-		//public Task SetLP([Remainder][Summary("New LP Value")] float newLP)
-  //      {
-		//	Program.Instance.SetNewLP(newLP);
-		//	return Program.Instance.RefreshCalculations();
-  //      }
 
-		//[Command("r")]
-		//[Summary("Refresh.")]
-		//public Task Refresh()
-		//{
-		//	return Program.Instance.RefreshCalculations();
-		//}
-	}
+        //[Command("setlp")]
+        //[Summary("Sets new LP values.")]
+        //public Task SetLP([Remainder][Summary("New LP Value")] float newLP)
+        //      {
+        //	Program.Instance.SetNewLP(newLP);
+        //	return Program.Instance.RefreshCalculations();
+        //      }
+
+        [Command("r")]
+        [Summary("Refresh.")]
+        public Task Refresh()
+        {
+            return Program.Instance.Refresh();
+        }
+    }
 }

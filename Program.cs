@@ -16,16 +16,16 @@ namespace FaucetHandler
         public static Program Instance;
 
         // .ENV Variables
-        private string WEB3Endpoint;
-        private string BotToken;
-        private ulong ChannelID;
+        private string WEB3_ENDPOINT;
+        private string BOT_TOKEN;
+        private ulong DISCORD_CHANNEL_ID;
         private string FAUCET_HANDLER_PRIVATE_KEY;
-        private string FaucetAddress;
-        private int RefreshTimeInMilliseconds;
+        private string FAUCET_CONTRACT_ADDRESS;
+        private int REFRESH_MS;
 
         private PersistenData persistenData;
 
-        private int MillisecondsUntilNextClaimReward;
+        private int MillisecondsSinceLastRewardsClaim;
 
         private DiscordSocketClient _client;
         private CommandService _commandService;
@@ -53,31 +53,26 @@ namespace FaucetHandler
 
         public async Task MainAsync()
         {
-            // Test musim vyskusat JSON ako funguje
-            persistenData = JsonUtil.ReadFromJsonFile<PersistenData>("Data");
-            MillisecondsUntilNextClaimReward = persistenData.TresholdForClaimRewardsInMilliseconds;
-
             // ENVIROMENT VARIABLES
             DotNetEnv.Env.TraversePath().Load();
 
-            WEB3Endpoint = DotNetEnv.Env.GetString("WEB3_ENDPOINT");
-            BotToken = DotNetEnv.Env.GetString("BOT_TOKEN");
-            ChannelID = ulong.Parse(DotNetEnv.Env.GetString("DISCORD_CHANNEL_ID"));
+            WEB3_ENDPOINT = DotNetEnv.Env.GetString("WEB3_ENDPOINT");
+            BOT_TOKEN = DotNetEnv.Env.GetString("BOT_TOKEN");
+            DISCORD_CHANNEL_ID = ulong.Parse(DotNetEnv.Env.GetString("DISCORD_CHANNEL_ID"));
             FAUCET_HANDLER_PRIVATE_KEY = DotNetEnv.Env.GetString("FAUCET_HANDLER_PRIVATE_KEY");
-            FaucetAddress = DotNetEnv.Env.GetString("FAUCET_CONTRACT_ADDRESS");
-            if (!int.TryParse(DotNetEnv.Env.GetString("REFRESH_MS"), out RefreshTimeInMilliseconds))
+            FAUCET_CONTRACT_ADDRESS = DotNetEnv.Env.GetString("FAUCET_CONTRACT_ADDRESS");
+            if (!int.TryParse(DotNetEnv.Env.GetString("REFRESH_MS"), out REFRESH_MS))
             {
-                RefreshTimeInMilliseconds = 3600000; // Evety hour
+                REFRESH_MS = 3600000; // Evety hour
             }
 
-            RefreshTimeInMilliseconds = int.Parse(DotNetEnv.Env.GetString("REFRESH_MS"));
-            //RefreshTimeInMilliseconds = int.Parse(DotNetEnv.Env.GetString("REFRESH_MS"));
+            // persistenData
+            persistenData = JsonUtil.ReadFromJsonFile<PersistenData>("Data");
 
             // Prepare WEB3
+            _web3Endpoint = new Web3(WEB3_ENDPOINT);
 
-            _web3Endpoint = new Web3(WEB3Endpoint);
-
-            Faucet_Contract = _web3Endpoint.Eth.GetContract(FAUCET_ABI, FaucetAddress);
+            Faucet_Contract = _web3Endpoint.Eth.GetContract(FAUCET_ABI, FAUCET_CONTRACT_ADDRESS);
 
             // Prepare DISCORD
 
@@ -95,11 +90,11 @@ namespace FaucetHandler
                 CaseSensitiveCommands = false,
             });
 
-            _commandHandler = new CommandHandler(_client, _commandService, ChannelID);
+            _commandHandler = new CommandHandler(_client, _commandService, DISCORD_CHANNEL_ID);
 
             await _commandHandler.InstallCommandsAsync();
 
-            await _client.LoginAsync(TokenType.Bot, BotToken);
+            await _client.LoginAsync(TokenType.Bot, BOT_TOKEN);
             await _client.StartAsync();
 
 
@@ -109,10 +104,20 @@ namespace FaucetHandler
 
             while (true) // And we loop here
             {
-                await Task.Delay(RefreshTimeInMilliseconds);
+                await Task.Delay(REFRESH_MS);
+
+                MillisecondsSinceLastRewardsClaim += REFRESH_MS;
+                if (MillisecondsSinceLastRewardsClaim >= persistenData.TresholdForClaimRewardsInMilliseconds)
+                {
+                    MillisecondsSinceLastRewardsClaim = 0;
+                    await ClaimRewards();
+                }
+
                 await Refresh();
             }
         }
+
+
 
         private async Task Ready()
         {
@@ -127,41 +132,34 @@ namespace FaucetHandler
 
         public async Task Refresh()
         {
-            // CLAMING AWARDS 
-            MillisecondsUntilNextClaimReward -= RefreshTimeInMilliseconds;
+            var faucetTarget_Func = Faucet_Contract.GetFunction("faucetTarget");
+            string faucetTargetAddress = await faucetTarget_Func.CallAsync<string>();
 
-            if (MillisecondsUntilNextClaimReward <= 0)
-            {
-                MillisecondsUntilNextClaimReward = persistenData.TresholdForClaimRewardsInMilliseconds;
-                await ClaimRewards();
-            }
+            var faucetTargetBalance = await _web3Endpoint.Eth.GetBalance.SendRequestAsync(faucetTargetAddress);
+            var balanceInEth = Web3.Convert.FromWei(faucetTargetBalance.Value);
 
-            // SHOW GENERAL INFO
+            // Time until next claim
 
-            // TODO REFRESH FAUCET STATE ..
-            // vypisem   incentives / balance
-
-
-          //  var balance = _web3Endpoint.Eth.GetBalance.SendRequestAsync(FaucetAddress);
-           // var etherAmount = Web3.Convert.FromWei(balance.Value);
-
-            var balance = await _web3Endpoint.Eth.GetBalance.SendRequestAsync(FaucetAddress);
-            var etherAmount = Web3.Convert.FromWei(balance.Value);
+            int msToNextClaim = persistenData.TresholdForClaimRewardsInMilliseconds - MillisecondsSinceLastRewardsClaim;
+            int hoursToNextClaim = ((msToNextClaim / 1000) / 60) / 60;
 
             StringBuilder sb = new StringBuilder();
             sb.Append($"```"); // CODE FORMATTING START
-            sb.AppendLine("");
-            sb.Append($"```");
+            sb.AppendLine("FaucetTarget Balance: " + balanceInEth);
+            sb.AppendLine("msToNextClaim : " + msToNextClaim);
+            sb.AppendLine("hoursToNextClaim : " + hoursToNextClaim);
 
+            sb.AppendLine("-- persistenData --");
+            sb.AppendLine(persistenData.ToString());
 
+            sb.Append($"```"); // CODE FORMATTING END
 
-
-               await WriteToMyChannel(sb.ToString());
+            await WriteToMyChannel(sb.ToString());
         }
 
         private async Task WriteToMyChannel(string text)
         {
-            IMessageChannel channel = _client.GetChannel(ChannelID) as IMessageChannel;
+            IMessageChannel channel = _client.GetChannel(DISCORD_CHANNEL_ID) as IMessageChannel;
             if (channel != null)
             {
                 if (LastBotMessageID != 0)
@@ -176,7 +174,7 @@ namespace FaucetHandler
 
         private async Task CleanChannel()
         {
-            IMessageChannel channel = _client.GetChannel(ChannelID) as IMessageChannel;
+            IMessageChannel channel = _client.GetChannel(DISCORD_CHANNEL_ID) as IMessageChannel;
             if (channel != null)
             {
                 var messages = await channel.GetMessagesAsync().FlattenAsync();
@@ -188,6 +186,9 @@ namespace FaucetHandler
                 }
             }
         }
+        
+        // TODO CHANING INTERNAL DATA
+
 
         //public void SetNewLP(float newLP)
         //{
