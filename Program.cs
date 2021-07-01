@@ -3,7 +3,9 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Nethereum.Contracts;
+using Nethereum.Hex.HexTypes;
 using Nethereum.Web3;
+using Nethereum.Web3.Accounts;
 using System;
 using System.Numerics;
 using System.Text;
@@ -70,7 +72,8 @@ namespace FaucetHandler
             persistenData = JsonUtil.ReadFromJsonFile<PersistenData>("Data");
 
             // Prepare WEB3
-            _web3Endpoint = new Web3(WEB3_ENDPOINT);
+            var faucetHandlerAccount = new Account(FAUCET_HANDLER_PRIVATE_KEY);
+            _web3Endpoint = new Web3(faucetHandlerAccount, WEB3_ENDPOINT);
 
             Faucet_Contract = _web3Endpoint.Eth.GetContract(FAUCET_ABI, FAUCET_CONTRACT_ADDRESS);
 
@@ -127,6 +130,22 @@ namespace FaucetHandler
 
         private async Task ClaimRewards()
         {
+            var claimRewards_Func = Faucet_Contract.GetFunction("claimRewards");
+            // string faucetTargetAddress = await claimRewards_Func.SendTransactionAsync();
+            // claimRewards_Func.SendTransactionAsync(fromAddress, new HexBigInteger(900000), null, 1, "Hello World")
+            var estimate = await claimRewards_Func.EstimateGasAsync();
+            Console.WriteLine("estimate.Value " + estimate.Value);
+
+            var result = await _web3Endpoint.Eth.GasPrice.SendRequestAsync(); // ako puzit ?
+
+            Console.WriteLine("GasPrice0 " + result.HexValue);
+            Console.WriteLine("GasPrice1 " + result.Value);
+            Console.WriteLine("GasPrice3 " + (result.Value / 2).ToString());
+
+            //xHash1 = await setMessageFunction.SendTransactionAsync(fromAddress, new HexBigInteger(900000), null, 1, "Hello World");
+            //Console.WriteLine("txHash1:\t" + txHash1.ToString());
+            //var txHash2 = await setMessageFunction.SendTransactionAsync(fromAddress, new HexBigInteger(900000), null, 2, nowTimestamp);
+            //Console.WriteLine("txHash2:\t" + txHash2.ToString());
 
         }
 
@@ -186,7 +205,7 @@ namespace FaucetHandler
                 }
             }
         }
-        
+
         // TODO CHANING INTERNAL DATA
 
 

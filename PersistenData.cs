@@ -8,7 +8,7 @@ namespace FaucetHandler
     {
         public BigInteger TresholdForFaucetDrop = Web3.Convert.ToWei("0,0025");
         public BigInteger DropAmount = Web3.Convert.ToWei("0,01");
-        public int TresholdForClaimRewardsInMilliseconds = 1 * 60 * 1000;
+        public int TresholdForClaimRewardsInMilliseconds = 10 * 1000;
 
         public override string ToString()
         {
