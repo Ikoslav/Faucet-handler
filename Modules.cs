@@ -17,7 +17,10 @@ namespace FaucetHandler
             sb.Append($"```"); // CODE FORMATTING START
 
             sb.AppendLine($"!r - refresh");
-            sb.AppendLine($"!setFaucetDropAmount");
+            sb.AppendLine($"!setFaucetDropAmount [ETH]");
+            sb.AppendLine($"!setFaucetDropTreshold [ETH]");
+            sb.AppendLine($"!setClaimRewardsDuration [Milliseconds]");
+
 
             sb.Append($"```"); // CODE FORMATTING END
 
@@ -42,9 +45,47 @@ namespace FaucetHandler
             try
             {
                 newFaucetDropAmount = Web3.Convert.ToWei(eth);
-                Program.Instance.PersistenData.DropAmount = newFaucetDropAmount;
+                Program.Instance.PersistenData.FaucetDropAmount = newFaucetDropAmount;
                 Program.Instance.SavePersistentData();
                 return ReplyAsync("```Setting FaucetDropAmount to: " + newFaucetDropAmount + " wei = " + eth + " eth```");
+            }
+            catch
+            {
+                return ReplyAsync("```Wrong parameter!```");
+            }
+        }
+
+        [Command("setFaucetDropTreshold")]
+        [Summary("...")]
+        public Task SetFaucetDropTreshold([Remainder][Summary("Value in ETH units")] string eth)
+        {
+            BigInteger newFaucetDropTreshold;
+
+            try
+            {
+                newFaucetDropTreshold = Web3.Convert.ToWei(eth);
+                Program.Instance.PersistenData.FaucetDropTreshold = newFaucetDropTreshold;
+                Program.Instance.SavePersistentData();
+                return ReplyAsync("```Setting FaucetDropTreshold to: " + newFaucetDropTreshold + " wei = " + eth + " eth```");
+            }
+            catch
+            {
+                return ReplyAsync("```Wrong parameter!```");
+            }
+        }
+
+        [Command("setClaimRewardsDuration")]
+        [Summary("...")]
+        public Task SetClaimRewardsDuration([Remainder][Summary("Milliseconds")] string ms)
+        {
+            try
+            {
+                int msParsed = int.Parse(ms);
+                int hours = (((msParsed / 1000) / 60) / 60);
+              
+                Program.Instance.PersistenData.ClaimRewardsDurationInMS = msParsed;
+                Program.Instance.SavePersistentData();
+                return ReplyAsync("```Setting ClaimRewardsDuration to: " + msParsed + " ms = " + hours + " hours```");
             }
             catch
             {
