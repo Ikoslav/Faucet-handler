@@ -46,7 +46,7 @@ namespace FaucetHandler
 
         private ulong LastBotMessageID = 0;
 
-        private Account faucetHandlerAccount;
+        private Account acc;
 
         public static void Main(string[] args)
         {
@@ -88,9 +88,9 @@ namespace FaucetHandler
             // persistenData
             LoadPersistentData();
 
-             // Prepare WEB3
-             faucetHandlerAccount = new Account(FAUCET_HANDLER_PRIVATE_KEY, CHAIN_ID);
-            _web3Endpoint = new Web3(faucetHandlerAccount, WEB3_ENDPOINT);
+            // Prepare WEB3
+            acc = new Account(FAUCET_HANDLER_PRIVATE_KEY, CHAIN_ID);
+            _web3Endpoint = new Web3(acc, WEB3_ENDPOINT);
 
             Faucet_Contract = _web3Endpoint.Eth.GetContract(FAUCET_ABI, FAUCET_CONTRACT_ADDRESS);
 
@@ -126,10 +126,10 @@ namespace FaucetHandler
             {
                 await Task.Delay(REFRESH_MS);
 
-                if (persistenData.ClaimRewardsDurationInMS > 0) // Do not claim if duration == 0
+                if (persistenData.RewardsClaimCooldown > 0) // Do not claim if duration == 0
                 {
                     MillisecondsSinceLastRewardsClaim += REFRESH_MS;
-                    if (MillisecondsSinceLastRewardsClaim >= persistenData.ClaimRewardsDurationInMS)
+                    if (MillisecondsSinceLastRewardsClaim >= persistenData.RewardsClaimCooldown)
                     {
                         MillisecondsSinceLastRewardsClaim = 0;
                         await ClaimRewards();
@@ -157,46 +157,100 @@ namespace FaucetHandler
             var claimRewards_Func = Faucet_Contract.GetFunction("claimRewards");
 
             HexBigInteger gasEstimate = await claimRewards_Func.EstimateGasAsync();
-            HexBigInteger gasPrice = await GetAvgGasPrice(); 
+            HexBigInteger gasPrice = await GetAvgGasPrice();
 
             Console.WriteLine("gasEstimate: " + gasEstimate.Value);
             Console.WriteLine("gasPrice: " + gasPrice.Value);
 
-            HexBigInteger hotWalletBalance = await AddressBalance(faucetHandlerAccount.Address);
-          
+            HexBigInteger hotWalletBalance = await AddressBalance(acc.Address);
+
             if (hotWalletBalance.Value < (gasEstimate.Value * gasPrice.Value)) return; // Not enough funds for transaction.
-            
-            var txhash = await claimRewards_Func.SendTransactionAsync(faucetHandlerAccount.Address, gasEstimate, gasPrice, new HexBigInteger(BigInteger.Zero));
-          
+
+            var txhash = await claimRewards_Func.SendTransactionAsync(acc.Address, gasEstimate, gasPrice, new HexBigInteger(BigInteger.Zero));
+
             Console.WriteLine("Claimed rewards txhash: " + txhash);
         }
 
 
         public async Task Refresh()
         {
+            // Faucet Target Balance
             var faucetTarget_Func = Faucet_Contract.GetFunction("faucetTarget");
-            string faucetTargetAddress = await faucetTarget_Func.CallAsync<string>();
+            string faucetTarget = await faucetTarget_Func.CallAsync<string>();
 
-            var faucetTargetBalance = await AddressBalance(faucetTargetAddress);
+            HexBigInteger faucetTargetBalance = await AddressBalance(faucetTarget);
             var balanceInEth = Web3.Convert.FromWei(faucetTargetBalance.Value);
 
             // Time until next claim
-
-            int msToNextClaim = persistenData.ClaimRewardsDurationInMS - MillisecondsSinceLastRewardsClaim;
+            int msToNextClaim = persistenData.RewardsClaimCooldown - MillisecondsSinceLastRewardsClaim;
             int hoursToNextClaim = ((msToNextClaim / 1000) / 60) / 60;
+
+            // FAUCET CONTRACT DailyLimit
+            var dailyLimit_Func = Faucet_Contract.GetFunction("dailyLimit");
+            BigInteger dailyLimit = await dailyLimit_Func.CallAsync<BigInteger>();
+
+            // FAUCET CONTRACT FaucetFunds
+            var faucetFunds_Func = Faucet_Contract.GetFunction("faucetFunds");
+            BigInteger faucetFunds = await faucetFunds_Func.CallAsync<BigInteger>();
+
+            // FAUCET CONTRACT RewardsAmount
+            var rewardsAmount_Func = Faucet_Contract.GetFunction("rewardsAmount");
+            BigInteger rewardsAmount = await rewardsAmount_Func.CallAsync<BigInteger>();
+
+            // FAUCET CONTRACT faucetHandler
+            var faucetHandler_Func = Faucet_Contract.GetFunction("faucetHandler");
+            string faucetHandler = await faucetHandler_Func.CallAsync<string>();
+           
+            // FAUCET CONTRACT faucetOwner
+            var faucetOwner_Func = Faucet_Contract.GetFunction("faucetOwner");
+            string faucetOwner= await faucetOwner_Func.CallAsync<string>();
+
+
+            // FAUCET CONTRACT cooldownEnds
+            var cooldownEnds_Func = Faucet_Contract.GetFunction("cooldownEnds");
+            BigInteger cooldownEnds = await cooldownEnds_Func.CallAsync<BigInteger>();
+            int cooldownEndsINT = (int)cooldownEnds;
+            int nowSeconds = DateTime.Now.Second;
+            int secondsUntilCooldownEnds = Math.Clamp(cooldownEndsINT - nowSeconds, 0, int.MaxValue);
+
+            // Account balance - moze byt ten isty ako target !
+            HexBigInteger accountBalance = await AddressBalance(acc.Address);
+            var accountBalanceInEth = Web3.Convert.FromWei(accountBalance.Value);
+
+            // Pridat  faucet  OWNER, TARGET, HANDLER ?
 
             StringBuilder sb = new StringBuilder();
             sb.Append($"```"); // CODE FORMATTING START
-            sb.AppendLine("FaucetTarget Balance: " + balanceInEth);
-            sb.AppendLine("msToNextClaim : " + msToNextClaim);
-            sb.AppendLine("hoursToNextClaim : " + hoursToNextClaim);
 
-            sb.AppendLine("-- persistenData --");
+            sb.AppendLine($"Faucet Contract        :{ Faucet_Contract.Address}");
+            sb.AppendLine($"");
+            sb.AppendLine($"Owner                  :{ faucetOwner}");
+            sb.AppendLine($"Handler                :{ faucetHandler}");
+            sb.AppendLine($"Target                 :{ faucetTarget}");
+            sb.AppendLine($"");
+            sb.AppendLine($"Daily limit            :{ string.Format("{0,15:N8} eth", Web3.Convert.FromWei(dailyLimit))}");
+            sb.AppendLine($"CooldownEnds in        :{ string.Format("{0,15:N0} s", secondsUntilCooldownEnds)}");
+            sb.AppendLine($"");
+            sb.AppendLine($"Funds                  :{ string.Format("{0,15:N8} eth", Web3.Convert.FromWei(faucetFunds))}");
+            sb.AppendLine($"Rewards                :{ string.Format("{0,15:N8} eth", Web3.Convert.FromWei(rewardsAmount))}");
+            sb.AppendLine($"");
+            sb.AppendLine($"");
+            sb.AppendLine($"Bot Connected Account  :{ acc.Address}");
+            sb.AppendLine($"Account balance        :{ string.Format("{0,15:N8} eth", accountBalanceInEth)}");
+            sb.AppendLine("");
+            sb.AppendLine($"Faucet target balance  :{ string.Format("{0,15:N8} eth", balanceInEth)}");
+            sb.AppendLine("");
+            sb.AppendLine($"Next rewards claim in  :{ string.Format("{0,15:N0} ms", msToNextClaim)} = {hoursToNextClaim} hours");
+            sb.AppendLine("");
+            sb.AppendLine("Persistent Settings:");
             sb.AppendLine(persistenData.ToString());
 
             sb.Append($"```"); // CODE FORMATTING END
 
             await WriteToMyChannel(sb.ToString());
+
+
+            // TODO Zohladni cooldown pri faucet drope !!
         }
 
         private async Task WriteToMyChannel(string text)

@@ -19,7 +19,7 @@ namespace FaucetHandler
             sb.AppendLine($"!r - refresh");
             sb.AppendLine($"!setFaucetDropAmount [ETH]");
             sb.AppendLine($"!setFaucetDropTreshold [ETH]");
-            sb.AppendLine($"!setClaimRewardsDuration [Milliseconds]");
+            sb.AppendLine($"!setRewardsClaimCooldown [Milliseconds]");
 
 
             sb.Append($"```"); // CODE FORMATTING END
@@ -74,7 +74,7 @@ namespace FaucetHandler
             }
         }
 
-        [Command("setClaimRewardsDuration")]
+        [Command("setRewardsClaimCooldown")]
         [Summary("...")]
         public Task SetClaimRewardsDuration([Remainder][Summary("Milliseconds")] string ms)
         {
@@ -83,9 +83,9 @@ namespace FaucetHandler
                 int msParsed = int.Parse(ms);
                 int hours = (((msParsed / 1000) / 60) / 60);
               
-                Program.Instance.PersistenData.ClaimRewardsDurationInMS = msParsed;
+                Program.Instance.PersistenData.RewardsClaimCooldown = msParsed;
                 Program.Instance.SavePersistentData();
-                return ReplyAsync("```Setting ClaimRewardsDuration to: " + msParsed + " ms = " + hours + " hours```");
+                return ReplyAsync("```Setting RewardsClaimCooldown to: " + msParsed + " ms = " + hours + " hours```");
             }
             catch
             {
