@@ -27,6 +27,10 @@ namespace FaucetHandler
         private int CHAIN_ID;
 
         private PersistenData persistenData;
+        public PersistenData PersistenData
+        {
+            get { return persistenData; }
+        }
 
         private int MillisecondsSinceLastRewardsClaim;
 
@@ -56,6 +60,16 @@ namespace FaucetHandler
             return Task.CompletedTask;
         }
 
+
+        private void LoadPersistentData()
+        {
+            persistenData = JsonUtil.ReadFromJsonFile<PersistenData>("Data");
+        }
+        public void SavePersistentData()
+        {
+            JsonUtil.WriteToJsonFile<PersistenData>("Data", persistenData);
+        }
+
         public async Task MainAsync()
         {
             // ENVIROMENT VARIABLES
@@ -72,10 +86,10 @@ namespace FaucetHandler
             CHAIN_ID = int.Parse(DotNetEnv.Env.GetString("CHAIN_ID"));
 
             // persistenData
-            persistenData = JsonUtil.ReadFromJsonFile<PersistenData>("Data");
+            LoadPersistentData();
 
-            // Prepare WEB3
-            faucetHandlerAccount = new Account(FAUCET_HANDLER_PRIVATE_KEY, CHAIN_ID);
+             // Prepare WEB3
+             faucetHandlerAccount = new Account(FAUCET_HANDLER_PRIVATE_KEY, CHAIN_ID);
             _web3Endpoint = new Web3(faucetHandlerAccount, WEB3_ENDPOINT);
 
             Faucet_Contract = _web3Endpoint.Eth.GetContract(FAUCET_ABI, FAUCET_CONTRACT_ADDRESS);
@@ -108,15 +122,18 @@ namespace FaucetHandler
             await Task.Delay(5000);
             await Refresh();
 
-            while (true) // And we loop here
+            while (true) // MAIN LOOP
             {
                 await Task.Delay(REFRESH_MS);
 
-                MillisecondsSinceLastRewardsClaim += REFRESH_MS;
-                if (MillisecondsSinceLastRewardsClaim >= persistenData.TresholdForClaimRewardsInMilliseconds)
+                if (persistenData.ClaimRewardsDurationInMS > 0) // Do not claim if duration == 0
                 {
-                    MillisecondsSinceLastRewardsClaim = 0;
-                    await ClaimRewards();
+                    MillisecondsSinceLastRewardsClaim += REFRESH_MS;
+                    if (MillisecondsSinceLastRewardsClaim >= persistenData.ClaimRewardsDurationInMS)
+                    {
+                        MillisecondsSinceLastRewardsClaim = 0;
+                        await ClaimRewards();
+                    }
                 }
 
                 await Refresh();
@@ -154,15 +171,6 @@ namespace FaucetHandler
             Console.WriteLine("Claimed rewards txhash: " + txhash);
         }
 
-        private Task<HexBigInteger> GetAvgGasPrice()
-        {
-            return _web3Endpoint.Eth.GasPrice.SendRequestAsync();
-        }
-
-        private Task<HexBigInteger> AddressBalance(string address)
-        {
-            return _web3Endpoint.Eth.GetBalance.SendRequestAsync(address);
-        }
 
         public async Task Refresh()
         {
@@ -174,7 +182,7 @@ namespace FaucetHandler
 
             // Time until next claim
 
-            int msToNextClaim = persistenData.TresholdForClaimRewardsInMilliseconds - MillisecondsSinceLastRewardsClaim;
+            int msToNextClaim = persistenData.ClaimRewardsDurationInMS - MillisecondsSinceLastRewardsClaim;
             int hoursToNextClaim = ((msToNextClaim / 1000) / 60) / 60;
 
             StringBuilder sb = new StringBuilder();
@@ -219,6 +227,15 @@ namespace FaucetHandler
                     await channel.DeleteMessageAsync(message.Id);
                 }
             }
+        }
+        private Task<HexBigInteger> GetAvgGasPrice()
+        {
+            return _web3Endpoint.Eth.GasPrice.SendRequestAsync();
+        }
+
+        private Task<HexBigInteger> AddressBalance(string address)
+        {
+            return _web3Endpoint.Eth.GetBalance.SendRequestAsync(address);
         }
 
         // TODO CHANING INTERNAL DATA
