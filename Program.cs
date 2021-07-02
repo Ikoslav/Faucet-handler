@@ -24,6 +24,7 @@ namespace FaucetHandler
         private string FAUCET_HANDLER_PRIVATE_KEY;
         private string FAUCET_CONTRACT_ADDRESS;
         private int REFRESH_MS;
+        private int CHAIN_ID;
 
         private PersistenData persistenData;
 
@@ -40,6 +41,8 @@ namespace FaucetHandler
         private Contract Faucet_Contract;
 
         private ulong LastBotMessageID = 0;
+
+        private Account faucetHandlerAccount;
 
         public static void Main(string[] args)
         {
@@ -63,16 +66,16 @@ namespace FaucetHandler
             DISCORD_CHANNEL_ID = ulong.Parse(DotNetEnv.Env.GetString("DISCORD_CHANNEL_ID"));
             FAUCET_HANDLER_PRIVATE_KEY = DotNetEnv.Env.GetString("FAUCET_HANDLER_PRIVATE_KEY");
             FAUCET_CONTRACT_ADDRESS = DotNetEnv.Env.GetString("FAUCET_CONTRACT_ADDRESS");
-            if (!int.TryParse(DotNetEnv.Env.GetString("REFRESH_MS"), out REFRESH_MS))
-            {
-                REFRESH_MS = 3600000; // Evety hour
-            }
+
+            REFRESH_MS = int.Parse(DotNetEnv.Env.GetString("REFRESH_MS"));
+
+            CHAIN_ID = int.Parse(DotNetEnv.Env.GetString("CHAIN_ID"));
 
             // persistenData
             persistenData = JsonUtil.ReadFromJsonFile<PersistenData>("Data");
 
             // Prepare WEB3
-            var faucetHandlerAccount = new Account(FAUCET_HANDLER_PRIVATE_KEY);
+            faucetHandlerAccount = new Account(FAUCET_HANDLER_PRIVATE_KEY, CHAIN_ID);
             _web3Endpoint = new Web3(faucetHandlerAccount, WEB3_ENDPOINT);
 
             Faucet_Contract = _web3Endpoint.Eth.GetContract(FAUCET_ABI, FAUCET_CONTRACT_ADDRESS);
@@ -120,33 +123,45 @@ namespace FaucetHandler
             }
         }
 
-
-
         private async Task Ready()
         {
             await CleanChannel();
-            //BigInteger.Parse()
         }
 
         private async Task ClaimRewards()
         {
+            var rewardsAmount_Func = Faucet_Contract.GetFunction("rewardsAmount");
+            BigInteger rewardsAmount = await rewardsAmount_Func.CallAsync<BigInteger>();
+
+            Console.WriteLine("rewardsAmount: " + rewardsAmount);
+
+            if (rewardsAmount <= BigInteger.Zero) return; // Note: If rewardsAmount is 0 transaction would revert.
+
             var claimRewards_Func = Faucet_Contract.GetFunction("claimRewards");
-            // string faucetTargetAddress = await claimRewards_Func.SendTransactionAsync();
-            // claimRewards_Func.SendTransactionAsync(fromAddress, new HexBigInteger(900000), null, 1, "Hello World")
-            var estimate = await claimRewards_Func.EstimateGasAsync();
-            Console.WriteLine("estimate.Value " + estimate.Value);
 
-            var result = await _web3Endpoint.Eth.GasPrice.SendRequestAsync(); // ako puzit ?
+            HexBigInteger gasEstimate = await claimRewards_Func.EstimateGasAsync();
+            HexBigInteger gasPrice = await GetAvgGasPrice(); 
 
-            Console.WriteLine("GasPrice0 " + result.HexValue);
-            Console.WriteLine("GasPrice1 " + result.Value);
-            Console.WriteLine("GasPrice3 " + (result.Value / 2).ToString());
+            Console.WriteLine("gasEstimate: " + gasEstimate.Value);
+            Console.WriteLine("gasPrice: " + gasPrice.Value);
 
-            //xHash1 = await setMessageFunction.SendTransactionAsync(fromAddress, new HexBigInteger(900000), null, 1, "Hello World");
-            //Console.WriteLine("txHash1:\t" + txHash1.ToString());
-            //var txHash2 = await setMessageFunction.SendTransactionAsync(fromAddress, new HexBigInteger(900000), null, 2, nowTimestamp);
-            //Console.WriteLine("txHash2:\t" + txHash2.ToString());
+            HexBigInteger hotWalletBalance = await AddressBalance(faucetHandlerAccount.Address);
+          
+            if (hotWalletBalance.Value < (gasEstimate.Value * gasPrice.Value)) return; // Not enough funds for transaction.
+            
+            var txhash = await claimRewards_Func.SendTransactionAsync(faucetHandlerAccount.Address, gasEstimate, gasPrice, new HexBigInteger(BigInteger.Zero));
+          
+            Console.WriteLine("Claimed rewards txhash: " + txhash);
+        }
 
+        private Task<HexBigInteger> GetAvgGasPrice()
+        {
+            return _web3Endpoint.Eth.GasPrice.SendRequestAsync();
+        }
+
+        private Task<HexBigInteger> AddressBalance(string address)
+        {
+            return _web3Endpoint.Eth.GetBalance.SendRequestAsync(address);
         }
 
         public async Task Refresh()
@@ -154,7 +169,7 @@ namespace FaucetHandler
             var faucetTarget_Func = Faucet_Contract.GetFunction("faucetTarget");
             string faucetTargetAddress = await faucetTarget_Func.CallAsync<string>();
 
-            var faucetTargetBalance = await _web3Endpoint.Eth.GetBalance.SendRequestAsync(faucetTargetAddress);
+            var faucetTargetBalance = await AddressBalance(faucetTargetAddress);
             var balanceInEth = Web3.Convert.FromWei(faucetTargetBalance.Value);
 
             // Time until next claim
