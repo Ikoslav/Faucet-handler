@@ -54,5 +54,14 @@ namespace FaucetHandler
                 return Math.Clamp((long)CooldownEnds_UNIX_SECONDS - now_UNIX_SECONDS, 0, long.MaxValue);
             }
         }
+        public long HoursUntilCooldownEnds
+        {
+            get
+            {
+                long now_UNIX_SECONDS = (long)(DateTime.Now - DateTime.UnixEpoch).TotalSeconds;
+
+                return Math.Clamp((long)CooldownEnds_UNIX_SECONDS - now_UNIX_SECONDS, 0, long.MaxValue) / 3600;
+            }
+        }
     }
 }

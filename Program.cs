@@ -199,8 +199,7 @@ namespace FaucetHandler
             HexBigInteger gasPrice = await GetAvgGasPrice();
 
             //  HexBigInteger gasPrice = new HexBigInteger(4000000000); // 4 GWEI
-
-
+            
             if (ContractData.FaucetFunds_WEI < (gasEstimate.Value * gasPrice.Value + PersistenData.FaucetDropAmount_WEI))
             {
                 Console.WriteLine("DoFaucetDrop - not enough funds in faucet!");
@@ -262,13 +261,14 @@ namespace FaucetHandler
         public async Task RefreshInfo()
         {
             int msToNextClaim = PersistenData.RewardsClaimCooldown_MS - SinceLastRewardsClaim_MS;
+            int secondsToNextClaim = msToNextClaim / 1000;
             int hoursToNextClaim = ((msToNextClaim / 1000) / 60) / 60;
 
             StringBuilder sb = new StringBuilder();
             sb.Append($"```"); // CODE FORMATTING START
 
             sb.AppendLine($"Bot wallet                  : {acc.Address}");
-            sb.AppendLine($"Bot wallet balance          :{string.Format("{0,15:N8} eth", ContractData.BotWalletBalance_ETH)}");
+            sb.AppendLine($"Bot wallet balance          :{string.Format("{0,15:N8} matic", ContractData.BotWalletBalance_ETH)}");
 
             sb.AppendLine($"");
 
@@ -279,14 +279,22 @@ namespace FaucetHandler
 
             sb.AppendLine($"");
 
-            sb.AppendLine($"Faucet Funds                :{string.Format("{0,15:N8} eth", ContractData.FaucetFunds_ETH)}");
-            sb.AppendLine($"Faucet Rewards              :{string.Format("{0,15:N8} eth", ContractData.RewardsAmount_ETH)}");
+            sb.AppendLine($"Faucet Funds                :{string.Format("{0,15:N8} matic", ContractData.FaucetFunds_ETH)}");
+            sb.AppendLine($"Faucet Rewards              :{string.Format("{0,15:N8} matic", ContractData.RewardsAmount_ETH)}");
 
             sb.AppendLine($"");
 
-            sb.AppendLine($"Faucet Target balance       :{string.Format("{0,15:N8} eth", ContractData.FaucetTargetBalance_ETH)}");
-            sb.AppendLine($"Faucet drop treshold        :{string.Format("{0,15:N8} eth", PersistenData.FaucetDropTreshold_ETH)}");
-            sb.AppendLine($"Faucet daily limit          :{string.Format("{0,15:N8} eth", ContractData.DailyLimit_ETH)}");
+            sb.AppendLine($"Faucet Target balance       :{string.Format("{0,15:N8} matic", ContractData.FaucetTargetBalance_ETH)}");
+            sb.AppendLine($"Faucet drop treshold        :{string.Format("{0,15:N8} matic", PersistenData.FaucetDropTreshold_ETH)}");
+            sb.AppendLine($"Faucet daily limit          :{string.Format("{0,15:N8} matic", ContractData.DailyLimit_ETH)}");
+            sb.AppendLine($"Faucet drop amount          :{string.Format("{0,15:N8} matic", PersistenData.FaucetDropAmount_ETH)}");
+            sb.AppendLine($"Cooldown                    :{string.Format("{0,15:N0} s", ContractData.SecondsUntilCooldownEnds)} = {ContractData.HoursUntilCooldownEnds} hours");
+
+            sb.AppendLine($"");
+
+            sb.AppendLine($"Next rewards claim in       :{string.Format("{0,15:N0} s", secondsToNextClaim)} = {hoursToNextClaim} hours");
+            sb.AppendLine($"Rewards claim cooldown      :{string.Format("{0,15:N0} s", PersistenData.RewardsClaimCooldown_S)} = {PersistenData.RewardsClaimCooldown_H} hours");
+
 
             if (PersistenData.FaucetDropAmount_WEI > ContractData.DailyLimit_WEI)
             {
@@ -296,17 +304,6 @@ namespace FaucetHandler
             {
                 sb.AppendLine($"!!! Faucet drop amount is less than faucet drop treshold !!!");
             }
-            else
-            {
-                sb.AppendLine($"Faucet drop amount          :{string.Format("{0,15:N8} eth", PersistenData.FaucetDropAmount_ETH)}");
-            }
-
-            sb.AppendLine($"Cooldown                    :{string.Format("{0,20:N0} s", ContractData.SecondsUntilCooldownEnds)}");
-
-            sb.AppendLine($"");
-
-            sb.AppendLine($"Next rewards claim in       :{string.Format("{0,15:N0} ms", msToNextClaim)} = {hoursToNextClaim} hours");
-            sb.AppendLine($"Rewards claim cooldown      :{string.Format("{0,15:N0} ms", PersistenData.RewardsClaimCooldown_MS)} = {PersistenData.RewardsClaimCooldown_H} hours");
 
             sb.Append($"```"); // CODE FORMATTING END
 

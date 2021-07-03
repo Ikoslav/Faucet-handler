@@ -10,9 +10,9 @@ namespace FaucetHandler
         private BigInteger faucetDropAmount_WEI = Web3.Convert.ToWei("0,01");
         private BigInteger faucetDropTreshold_WEI = Web3.Convert.ToWei("0,0025");
 
-        // Note: In Milliseconds
-        private int rewardsClaimCooldown_MS = 100 * 1000; // 0 would mean no rewards collecting
-
+        // Note: In Milliseconds , 4days = 345600000
+        private int rewardsClaimCooldown_MS = 345600000; // 0 would mean no rewards collecting
+        
         public BigInteger FaucetDropAmount_WEI
         {
             get { return faucetDropAmount_WEI; }
@@ -40,6 +40,10 @@ namespace FaucetHandler
         public int RewardsClaimCooldown_H
         {
             get { return (((rewardsClaimCooldown_MS / 1000) / 60) / 60); }
+        }
+        public int RewardsClaimCooldown_S
+        {
+            get { return rewardsClaimCooldown_MS / 1000; }
         }
     }
 }
