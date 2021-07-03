@@ -45,9 +45,14 @@ namespace FaucetHandler
 
         public BigInteger CooldownEnds_UNIX_SECONDS { get; set; }
 
-        public int SecondsUntilCooldownEnds
+        public long SecondsUntilCooldownEnds
         {
-            get { return Math.Clamp((int)CooldownEnds_UNIX_SECONDS - DateTime.Now.Second, 0, int.MaxValue); }
+            get
+            {
+                long now_UNIX_SECONDS = (long)(DateTime.Now - DateTime.UnixEpoch).TotalSeconds;
+
+                return Math.Clamp((long)CooldownEnds_UNIX_SECONDS - now_UNIX_SECONDS, 0, long.MaxValue);
+            }
         }
     }
 }

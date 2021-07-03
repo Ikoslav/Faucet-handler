@@ -192,8 +192,14 @@ namespace FaucetHandler
 
             var doFaucetDrop_Func = Faucet_Contract.GetFunction("doFaucetDrop");
 
-            HexBigInteger gasEstimate = await doFaucetDrop_Func.EstimateGasAsync();
+            //  Throws   Only Handler from contract --- whoever is asking contract
+            //  HexBigInteger gasEstimate = await doFaucetDrop_Func.EstimateGasAsync(PersistenData.FaucetDropAmount_WEI);
+
+            HexBigInteger gasEstimate = new HexBigInteger(500000);
             HexBigInteger gasPrice = await GetAvgGasPrice();
+
+            //  HexBigInteger gasPrice = new HexBigInteger(4000000000); // 4 GWEI
+
 
             if (ContractData.FaucetFunds_WEI < (gasEstimate.Value * gasPrice.Value + PersistenData.FaucetDropAmount_WEI))
             {
@@ -215,11 +221,15 @@ namespace FaucetHandler
                 return;
             }
 
-            if (ContractData.SecondsUntilCooldownEnds == 0)
+            if (ContractData.SecondsUntilCooldownEnds > 0)
             {
                 Console.WriteLine("DoFaucetDrop - faucet is still on cooldown!");
                 return;
             }
+
+            var txhash = await doFaucetDrop_Func.SendTransactionAsync(acc.Address, gasEstimate, gasPrice, new HexBigInteger(BigInteger.Zero), PersistenData.FaucetDropAmount_WEI);
+            Console.WriteLine("DoFaucetDrop : " + txhash);
+            //Console.WriteLine("DoFaucetDrop :  test");
         }
 
 
@@ -291,7 +301,7 @@ namespace FaucetHandler
                 sb.AppendLine($"Faucet drop amount          :{string.Format("{0,15:N8} eth", PersistenData.FaucetDropAmount_ETH)}");
             }
 
-            sb.AppendLine($"Cooldown                    :{string.Format("{0,15:N0} s",  ContractData.SecondsUntilCooldownEnds)}");
+            sb.AppendLine($"Cooldown                    :{string.Format("{0,20:N0} s", ContractData.SecondsUntilCooldownEnds)}");
 
             sb.AppendLine($"");
 
