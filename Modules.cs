@@ -31,7 +31,7 @@ namespace FaucetHandler
         [Summary("Refresh.")]
         public Task Refresh()
         {
-            return Program.Instance.RefreshInfo();
+            return Program.Instance.ForceRefresh();
         }
 
 

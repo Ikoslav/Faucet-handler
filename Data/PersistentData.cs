@@ -7,12 +7,12 @@ namespace FaucetHandler
     [JsonObject(MemberSerialization.Fields)]
     public class PersistentData
     {
-        private BigInteger faucetDropAmount_WEI = Web3.Convert.ToWei("0,01");
-        private BigInteger faucetDropTreshold_WEI = Web3.Convert.ToWei("0,0025");
+        private BigInteger faucetDropAmount_WEI = new BigInteger(10000000000000000);   // 0.01   eth
+        private BigInteger faucetDropTreshold_WEI = new BigInteger(2500000000000000);  // 0.0025 eth
 
         // Note: In Milliseconds , 4days = 345600000
         private int rewardsClaimCooldown_MS = 345600000; // 0 would mean no rewards collecting
-        
+
         public BigInteger FaucetDropAmount_WEI
         {
             get { return faucetDropAmount_WEI; }

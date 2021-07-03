@@ -231,7 +231,6 @@ namespace FaucetHandler
             //Console.WriteLine("DoFaucetDrop :  test");
         }
 
-
         private async Task ClaimRewards()
         {
             var claimRewards_Func = Faucet_Contract.GetFunction("claimRewards");
@@ -258,7 +257,13 @@ namespace FaucetHandler
             Console.WriteLine("Claimed rewards: " + txhash);
         }
 
-        public async Task RefreshInfo()
+        public async Task ForceRefresh()
+        {
+            await RefreshContractData();
+            await RefreshInfo();
+        }
+
+        private async Task RefreshInfo()
         {
             int msToNextClaim = PersistenData.RewardsClaimCooldown_MS - SinceLastRewardsClaim_MS;
             int secondsToNextClaim = msToNextClaim / 1000;
