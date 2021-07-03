@@ -31,7 +31,7 @@ namespace FaucetHandler
         [Summary("Refresh.")]
         public Task Refresh()
         {
-            return Program.Instance.Refresh();
+            return Program.Instance.RefreshInfo();
         }
 
 
@@ -45,7 +45,7 @@ namespace FaucetHandler
             try
             {
                 newFaucetDropAmount = Web3.Convert.ToWei(eth);
-                Program.Instance.PersistenData.FaucetDropAmount = newFaucetDropAmount;
+                Program.Instance.PersistenData.FaucetDropAmount_WEI = newFaucetDropAmount;
                 Program.Instance.SavePersistentData();
                 return ReplyAsync("```Setting FaucetDropAmount to: " + newFaucetDropAmount + " wei = " + eth + " eth```");
             }
@@ -64,7 +64,7 @@ namespace FaucetHandler
             try
             {
                 newFaucetDropTreshold = Web3.Convert.ToWei(eth);
-                Program.Instance.PersistenData.FaucetDropTreshold = newFaucetDropTreshold;
+                Program.Instance.PersistenData.FaucetDropTreshold_WEI = newFaucetDropTreshold;
                 Program.Instance.SavePersistentData();
                 return ReplyAsync("```Setting FaucetDropTreshold to: " + newFaucetDropTreshold + " wei = " + eth + " eth```");
             }
@@ -83,7 +83,7 @@ namespace FaucetHandler
                 int msParsed = int.Parse(ms);
                 int hours = (((msParsed / 1000) / 60) / 60);
               
-                Program.Instance.PersistenData.RewardsClaimCooldown = msParsed;
+                Program.Instance.PersistenData.RewardsClaimCooldown_MS = msParsed;
                 Program.Instance.SavePersistentData();
                 return ReplyAsync("```Setting RewardsClaimCooldown to: " + msParsed + " ms = " + hours + " hours```");
             }
