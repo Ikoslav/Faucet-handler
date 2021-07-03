@@ -184,6 +184,12 @@ namespace FaucetHandler
 
         private async Task DoFaucetDrop()
         {
+            if (ContractData.FaucetTargetBalance_WEI >= PersistenData.FaucetDropTreshold_WEI)
+            {
+                // Faucet target balance is above treshold - 
+                return;
+            }
+
             var doFaucetDrop_Func = Faucet_Contract.GetFunction("doFaucetDrop");
 
             HexBigInteger gasEstimate = await doFaucetDrop_Func.EstimateGasAsync();
