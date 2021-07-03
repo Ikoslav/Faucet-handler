@@ -1,5 +1,6 @@
 ﻿using Nethereum.Hex.HexTypes;
 using Nethereum.Web3;
+using System;
 using System.Numerics;
 
 namespace FaucetHandler
@@ -43,5 +44,10 @@ namespace FaucetHandler
         }
 
         public BigInteger CooldownEnds_UNIX_SECONDS { get; set; }
+
+        public int SecondsUntilCooldownEnds
+        {
+            get { return Math.Clamp((int)CooldownEnds_UNIX_SECONDS - DateTime.Now.Second, 0, int.MaxValue); }
+        }
     }
 }

@@ -170,6 +170,8 @@ namespace FaucetHandler
                     }
                 }
 
+                await DoFaucetDrop();
+
                 await RefreshInfo();
             }
         }
@@ -179,6 +181,41 @@ namespace FaucetHandler
         {
             await CleanChannel();
         }
+
+        private async Task DoFaucetDrop()
+        {
+            var doFaucetDrop_Func = Faucet_Contract.GetFunction("doFaucetDrop");
+
+            HexBigInteger gasEstimate = await doFaucetDrop_Func.EstimateGasAsync();
+            HexBigInteger gasPrice = await GetAvgGasPrice();
+
+            if (ContractData.FaucetFunds_WEI < (gasEstimate.Value * gasPrice.Value + PersistenData.FaucetDropAmount_WEI))
+            {
+                Console.WriteLine("DoFaucetDrop - not enough funds in faucet!");
+                return;
+            }
+
+            HexBigInteger hotWalletBalance = await AddressBalance(acc.Address);
+
+            if (hotWalletBalance.Value < (gasEstimate.Value * gasPrice.Value))
+            {
+                Console.WriteLine("DoFaucetDrop - not enough funds for transaction!");
+                return;
+            }
+
+            if (PersistenData.FaucetDropAmount_WEI < PersistenData.FaucetDropTreshold_WEI)
+            {
+                Console.WriteLine("DoFaucetDrop - drop amount is less than treshold!"); // Faucet drop would be triggered multiple times in a row!
+                return;
+            }
+
+            if (ContractData.SecondsUntilCooldownEnds == 0)
+            {
+                Console.WriteLine("DoFaucetDrop - faucet is still on cooldown!");
+                return;
+            }
+        }
+
 
         private async Task ClaimRewards()
         {
@@ -190,7 +227,7 @@ namespace FaucetHandler
             if (ContractData.RewardsAmount_WEI < (gasEstimate.Value * gasPrice.Value))
             {
                 Console.WriteLine("ClaimRewards - Reward is not bigger than gas fees!");
-                return; 
+                return;
             }
 
             HexBigInteger hotWalletBalance = await AddressBalance(acc.Address);
@@ -198,11 +235,11 @@ namespace FaucetHandler
             if (hotWalletBalance.Value < (gasEstimate.Value * gasPrice.Value))
             {
                 Console.WriteLine("ClaimRewards - not enough funds for transaction!");
-                return; 
+                return;
             }
 
             var txhash = await claimRewards_Func.SendTransactionAsync(acc.Address, gasEstimate, gasPrice, new HexBigInteger(BigInteger.Zero));
-        
+
             Console.WriteLine("Claimed rewards: " + txhash);
         }
 
@@ -210,9 +247,6 @@ namespace FaucetHandler
         {
             int msToNextClaim = PersistenData.RewardsClaimCooldown_MS - SinceLastRewardsClaim_MS;
             int hoursToNextClaim = ((msToNextClaim / 1000) / 60) / 60;
-
-            int secondsUntilCooldownEnds = Math.Clamp((int)ContractData.CooldownEnds_UNIX_SECONDS - DateTime.Now.Second, 0, int.MaxValue);
-
 
             StringBuilder sb = new StringBuilder();
             sb.Append($"```"); // CODE FORMATTING START
@@ -242,12 +276,16 @@ namespace FaucetHandler
             {
                 sb.AppendLine($"!!! Faucet drop amount is bigger than daily limit !!!");
             }
+            else if (PersistenData.FaucetDropAmount_WEI < PersistenData.FaucetDropTreshold_WEI)
+            {
+                sb.AppendLine($"!!! Faucet drop amount is less than faucet drop treshold !!!");
+            }
             else
             {
                 sb.AppendLine($"Faucet drop amount          :{string.Format("{0,15:N8} eth", PersistenData.FaucetDropAmount_ETH)}");
             }
 
-            sb.AppendLine($"Cooldown                    :{string.Format("{0,15:N0} s", secondsUntilCooldownEnds)}");
+            sb.AppendLine($"Cooldown                    :{string.Format("{0,15:N0} s",  ContractData.SecondsUntilCooldownEnds)}");
 
             sb.AppendLine($"");
 

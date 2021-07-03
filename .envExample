@@ -1,1 +1,17 @@
-TODO
+WEB3_ENDPOINT=
+
+BOT_TOKEN=
+DISCORD_CHANNEL_ID=
+
+FAUCET_HANDLER_PRIVATE_KEY=
+
+# contract address
+FAUCET_CONTRACT_ADDRESS=
+
+REFRESH_MS=60000
+
+# Musim mat chain id  
+CHAIN_ID=137
+
+# matic mainnet id 137
+# mumbai id 80001
