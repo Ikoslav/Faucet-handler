@@ -20,7 +20,8 @@ namespace FaucetHandler
             sb.AppendLine($"!setFaucetDropAmount [ETH]");
             sb.AppendLine($"!setFaucetDropTreshold [ETH]");
             sb.AppendLine($"!setRewardsClaimCooldown [DAYS]");
-
+            sb.AppendLine($"!setGasPriceClaim [GWEI]");
+            sb.AppendLine($"!setGasPriceDrop [GWEI]");
 
             sb.Append($"```"); // CODE FORMATTING END
 
@@ -34,7 +35,21 @@ namespace FaucetHandler
             return Program.Instance.ForceRefresh();
         }
 
+        [Command("setGasPriceClaim")]
+        public Task SetGasPriceClaim(int gwei)
+        {
+            Program.Instance.PersistenData.GasPriceForClaimRewards_GWEI = gwei;
+            Program.Instance.SavePersistentData();
+            return null;
+        }
 
+        [Command("setGasPriceDrop")]
+        public Task SetGasPriceDrop(int gwei)
+        {
+            Program.Instance.PersistenData.GasPriceForFaucetDrop_GWEI = gwei;
+            Program.Instance.SavePersistentData();
+            return null;
+        }
 
         [Command("setFaucetDropAmount")]
         [Summary("...")]
@@ -82,7 +97,7 @@ namespace FaucetHandler
             {
                 int daysParsed = int.Parse(days);
                 int convertedToMS = daysParsed * 24 * 60 * 60 * 1000;
-              
+
                 Program.Instance.PersistenData.RewardsClaimCooldown_MS = convertedToMS;
                 Program.Instance.SavePersistentData();
                 return ReplyAsync("```Setting RewardsClaimCooldown to: " + convertedToMS + " ms = " + Program.Instance.PersistenData.RewardsClaimCooldown_H + " hours```");
