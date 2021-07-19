@@ -8,6 +8,9 @@ namespace FaucetHandler
     [JsonObject(MemberSerialization.Fields)]
     public class PersistentData
     {
+        private const int RewardsClaimLowerLimit = 60000;
+        private const int GasPriceLowerLimit = 1;
+
         private BigInteger faucetDropAmount_WEI = new BigInteger(10000000000000000);   // 0.01   eth
         private BigInteger faucetDropTreshold_WEI = new BigInteger(2500000000000000);  // 0.0025 eth
 
@@ -19,13 +22,13 @@ namespace FaucetHandler
 
         public int GasPriceForClaimRewards_GWEI
         {
-            get { return gasPriceForClaimRewards_GWEI; }
-            set { gasPriceForClaimRewards_GWEI = Math.Max(1, value); }
+            get { return gasPriceForClaimRewards_GWEI >= GasPriceLowerLimit ? gasPriceForClaimRewards_GWEI : GasPriceLowerLimit; }
+            set { gasPriceForClaimRewards_GWEI = Math.Max(GasPriceLowerLimit, value); }
         }
         public int GasPriceForFaucetDrop_GWEI
         {
-            get { return gasPriceForFaucetDrop_GWEI; }
-            set { gasPriceForFaucetDrop_GWEI = Math.Max(1, value); }
+            get { return gasPriceForFaucetDrop_GWEI >= GasPriceLowerLimit ? gasPriceForFaucetDrop_GWEI : GasPriceLowerLimit; }
+            set { gasPriceForFaucetDrop_GWEI = Math.Max(GasPriceLowerLimit, value); }
         }
 
         public BigInteger FaucetDropAmount_WEI
@@ -47,18 +50,19 @@ namespace FaucetHandler
         {
             get { return Web3.Convert.FromWei(faucetDropTreshold_WEI); }
         }
+        
         public int RewardsClaimCooldown_MS
         {
-            get { return rewardsClaimCooldown_MS; }
-            set { rewardsClaimCooldown_MS = System.Math.Clamp(value, 0, int.MaxValue); }
+            get { return rewardsClaimCooldown_MS >= RewardsClaimLowerLimit ? rewardsClaimCooldown_MS : RewardsClaimLowerLimit; }
+            set { rewardsClaimCooldown_MS = Math.Clamp(value, RewardsClaimLowerLimit, int.MaxValue); }
         }
         public int RewardsClaimCooldown_H
         {
-            get { return (((rewardsClaimCooldown_MS / 1000) / 60) / 60); }
+            get { return (((RewardsClaimCooldown_MS / 1000) / 60) / 60); }
         }
         public int RewardsClaimCooldown_S
         {
-            get { return rewardsClaimCooldown_MS / 1000; }
+            get { return RewardsClaimCooldown_MS / 1000; }
         }
     }
 }

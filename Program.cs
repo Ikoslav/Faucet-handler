@@ -2,6 +2,8 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using IkosBots.Discord;
+using IkosBots.Discord.Commands;
 using Nethereum.Contracts;
 using Nethereum.Hex.HexTypes;
 using Nethereum.Web3;
@@ -36,6 +38,7 @@ namespace FaucetHandler
         private int SinceLastRewardsClaim_MS;
 
         private DiscordSocketClient _client;
+        private ClientHelper _clientHelper;
         private CommandService _commandService;
         private CommandHandler _commandHandler;
 
@@ -45,7 +48,7 @@ namespace FaucetHandler
 
         private Contract Faucet_Contract;
 
-        private ulong LastBotMessageID = 0;
+        private ulong PreviousBotMessageID = 0;
 
         private Account acc;
 
@@ -102,7 +105,7 @@ namespace FaucetHandler
             }
             catch (Exception e)
             {
-                await WriteToMyChannel("RefreshContractData Exception" + e.Message);
+                await _clientHelper.WriteToChannel("RefreshContractData Exception" + e.Message);
             }
         }
 
@@ -135,6 +138,8 @@ namespace FaucetHandler
             _client = new DiscordSocketClient();
             _client.Log += Log;
             _client.Ready += Ready;
+
+            _clientHelper = new ClientHelper(_client, DISCORD_CHANNEL_ID);
 
             _commandService = new CommandService(new CommandServiceConfig
             {
@@ -239,7 +244,7 @@ namespace FaucetHandler
             }
             catch (Exception e)
             {
-                await WriteToMyChannel("DoFaucetDrop Exception" + e.Message);
+                await _clientHelper.WriteToChannel("DoFaucetDrop Exception" + e.Message);
             }
         }
 
@@ -272,7 +277,7 @@ namespace FaucetHandler
             }
             catch (Exception e)
             {
-                await WriteToMyChannel("ClaimRewards Exception" + e.Message);
+                await _clientHelper.WriteToChannel("ClaimRewards Exception" + e.Message);
             }
         }
 
@@ -322,37 +327,9 @@ namespace FaucetHandler
                 sb.AppendLine($"!!! Faucet drop amount is less than faucet drop treshold !!!");
             }
 
-            await WriteToMyChannel_DeletePreviousMSG(sb.ToString());
+            PreviousBotMessageID = await _clientHelper.WriteToChannel(sb.ToString(), PreviousBotMessageID);
         }
 
-
-        private async Task WriteToMyChannel_DeletePreviousMSG(string text)
-        {
-            string consoleFormat = "```" + text + "```";
-
-            IMessageChannel channel = _client.GetChannel(DISCORD_CHANNEL_ID) as IMessageChannel;
-            if (channel != null)
-            {
-                if (LastBotMessageID != 0)
-                {
-                    await channel.DeleteMessageAsync(LastBotMessageID);
-                }
-
-                var message = await channel.SendMessageAsync(consoleFormat);
-                LastBotMessageID = message.Id;
-            }
-        }
-
-        private async Task WriteToMyChannel(string text)
-        {
-            string consoleFormat = "```" + text + "```";
-
-            IMessageChannel channel = _client.GetChannel(DISCORD_CHANNEL_ID) as IMessageChannel;
-            if (channel != null)
-            {
-                await channel.SendMessageAsync(consoleFormat);
-            }
-        }
 
         private async Task CleanChannel()
         {
