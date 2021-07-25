@@ -207,7 +207,7 @@ namespace FaucetHandler
                 //  Throws   Only Handler from contract --- whoever is asking contract
                 //  HexBigInteger gasEstimate = await doFaucetDrop_Func.EstimateGasAsync(PersistenData.FaucetDropAmount_WEI);
 
-                HexBigInteger gasEstimate = new HexBigInteger(500000);
+                HexBigInteger gasEstimate = new HexBigInteger(500000); // HARDCODED FOR REASON UP . -  probably can be fixed if we link faucet handler to this call somehow.
                 HexBigInteger gasPrice = new HexBigInteger(CalcGasPrice(PersistenData.GasPriceForFaucetDrop_GWEI));
 
                 //  HexBigInteger gasPrice = new HexBigInteger(4000000000); // 4 GWEI
@@ -255,6 +255,7 @@ namespace FaucetHandler
                 var claimRewards_Func = Faucet_Contract.GetFunction("claimRewards");
 
                 HexBigInteger gasEstimate = await claimRewards_Func.EstimateGasAsync();
+                gasEstimate = new HexBigInteger(gasEstimate.Value * 2); // DOUBLE THE ESTIMATE // Fixing because it happened, that we ran out of gas !
                 HexBigInteger gasPrice = new HexBigInteger(CalcGasPrice(PersistenData.GasPriceForClaimRewards_GWEI));
 
                 if (ContractData.RewardsAmount_WEI < (gasEstimate.Value * gasPrice.Value))
